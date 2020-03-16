@@ -1,16 +1,32 @@
 let input = $('#uploader__input');
 let config = {
     url: 'server.php',
-    maxSize: 100000
-};
+    maxSize: 100, // размер файла в MB
+    allowedFileTypes: ['jpg','jpeg','png','txt'],
+    mimeTypes: [],
+    convertToBase64: false,
+    init: function() {
+        axios.get('mime_types.json').then(function(response) { 
+            config.mimeTypes = response.data; 
+            config.allowedMimeTypes = response.data.filter(function(mimeType) {
+                return config.allowedFileTypes.indexOf(mimeType.extension) != -1;
+            });
+        });
 
+        this.maxSize = this.maxSize * 1024 * 1024;
+    },
+};
+config.init();
+
+console.log(config);
+
+console.log();
 
 // обработка файлов
 input.change(config,processFiles);
 
 async function processFiles()
 {
-    console.log(config);
     // получить все выбранные файлы
     let files = Array.from(Object.values( $(this).get(0).files ));
 
@@ -23,7 +39,10 @@ async function processFiles()
         process = await validate(files, config);
 
         // конвертирование в base64
-        process = await convert(process, config);
+        if (config.convertToBase64) {
+            process = await convert(process, config);
+        }
+        
 
         // отправка файлов на сервер
         process = await send(process, config);
@@ -58,10 +77,16 @@ async function convert(files, config) {
 async function validate(files, config) {
     console.groupCollapsed('Проверка файлов');
     
-    let filtered = await files.filter(function(pFile) {
-        let check = pFile.size < 100000;
-        check ? true : console.log('Размер файла '+pFile.name+' больше разрешенного.');
-        return check;
+    let filtered = await files.filter(function(pFile) 
+    {
+        let errors = [];
+        // проверка размера файла
+        pFile.size < config.maxSize ? true : errors.push('Размер файла '+pFile.name+' больше разрешенного.');
+
+        // проверка разрешенных типов файлов
+        _.findIndex(config.allowedMimeTypes, { mime: pFile.type }) != -1 ? true : errors.push('Файл ' + pFile.name + ' имеет неразрешенный тип файла ('+ pFile.type +') для загрузки.');
+
+        return errors.length == 0 ? true : console.log(errors);
     });
 
     console.table('Отфильтрованные файлы: ', filtered);
@@ -73,20 +98,41 @@ async function validate(files, config) {
 async function send(files, config) {
     
     console.groupCollapsed('Отправка файлов');
-    
     let data = [];
-
+    
+        
     for (f in files) 
     {
         let pFile = files[f];
         let fd = new FormData();
-        fd.append('string', pFile.string);
-        fd.append('name', pFile.file.name);
-        fd.append('type', pFile.file.type);
-        fd.append('size', pFile.file.size);
+        let fileData = {};
+        // если это File
+        if (files[0] instanceof File) {
+            fileData = {
+                uploadedFile: pFile,
+                name: pFile.name,
+                type: pFile.type,
+                size: pFile.size
+            };
+        }
+
+        // если это base64
+        if (files[0] instanceof String) {
+            fileData = {
+                uploadedFile: pFile.string,
+                name: pFile.file.name,
+                type: pFile.file.type,
+                size: pFile.file.size
+            };
+        }
+
+        fd.append('uploadedFile', fileData.uploadedFile);
+        fd.append('name', fileData.name);
+        fd.append('type', fileData.type);
+        fd.append('size', fileData.size);
 
         data.push(await new Promise(async function(resolve) {
-            console.log('Загрузка файла ' + pFile.file.name);
+            console.log('Загрузка файла ' + fileData.name);
             await axios.post(config.url, fd, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
