@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag&Drop</title>
+    <style>
+        .wrapper {
+            display: flex;
+            justify-content: space-between;
+            width: 400px;
+            margin-top: 100px;
+        }
+        .wrapper div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #0b1a79e8;
+            font-weight: bold;
+            font-size: 20px;
+            color: #fff;
+            width: 100px;
+            height: 100px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+        .draggable {
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body style="display: flex; justify-content: center;">
+    
+    <div class="wrapper">
+        <div>A</div>
+        <div>B</div>
+        <div>C</div>
+        <div>D</div>
+    </div>
+
+    <script src="../node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="../node_modules/jquery-ui-dist/jquery-ui.min.js"></script>
+    <script>
+        $(function() {
+            let wrapper = $('.wrapper');
+            let draggables = wrapper.find('div');
+            // console.log(draggables);
+            draggables.draggable({
+                containment: '.wrapper',
+
+                grid: [100, 100],
+
+                start: function(event, ui) {
+                    
+                    $(this).toggleClass('draggable');
+                    
+                },
+                stop: function(event, ui) {
+
+                    $(this).toggleClass('draggable');
+                },
+                drag: function(event, ui) {
+
+                }
+            });
+
+            draggables.droppable({
+                activate: function (event) {
+                    event.target.style.backgroundColor = '#333';
+                },
+                deactivate: function (event) {
+                    event.target.style.backgroundColor = '#0b1a79e8';
+                },
+                over: function(event,ui) {
+                    console.table(ui);
+                    let draggable = ui.draggable;
+                    let overable = $(this);
+
+                    if (ui.position.left < 0) {
+                        overable[0].style.left = '100px'
+                        // переиндексировать все нахер
+                    } else {
+                        overable[0].style.left = '-100px'
+                    }
+
+                    // console.log(draggable.index(), overable.index());
+
+                },
+                drop: function (event) {
+                    event.target.style.backgroundColor = '#0b1a79e8';
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
